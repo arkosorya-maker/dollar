@@ -6,7 +6,7 @@ import { ResponsiveContainer, LineChart, Line } from 'recharts';
 import Image from 'next/image';
 
 const mockCurrencies = [
-  { id: 'USD', name: 'دۆلاری ئەمریکی', flag: '🇺🇸', rate: 153300, change: 0.12, amount: 100 },
+  { id: 'USD', name: 'دۆلاری ئەمریکی', flag: '🇺🇸', rate: 154500, change: 0.12, amount: 100 },
   { id: 'EUR', name: 'یۆرۆ', flag: '🇪🇺', rate: 165000, change: -0.07, amount: 100 },
   { id: 'GBP', name: 'پاوەندی بەریتانی', flag: '🇬🇧', rate: 195000, change: -0.12, amount: 100 },
   { id: 'KWD', name: 'دیناری کوەیتی', flag: '🇰🇼', rate: 498000, change: 0.25, amount: 100 },
@@ -18,9 +18,9 @@ const mockCurrencies = [
 ];
 
 const mockGold = [
-  { id: '24K', name: 'زێڕی عەیارە ٢٤', priceIQD: 1170000 },
-  { id: '21K', name: 'زێڕی عەیارە ٢١', priceIQD: 1025000 },
-  { id: '18K', name: 'زێڕی عەیارە ١٨', priceIQD: 878000 },
+  { id: '24K', name: 'زێڕی عەیارە ٢٤', priceIQD: 1063000 },
+  { id: '21K', name: 'زێڕی عەیارە ٢١', priceIQD: 1015000 },
+  { id: '18K', name: 'زێڕی عەیارە ١٨', priceIQD: 870000 },
 ];
 
 const btcPrice = 67000;
@@ -69,11 +69,11 @@ export default function App() {
     fetchLiveRates();
     fetchLiveGold(); // Fetch immediately
     
-    // ئەپدەیتکردنەوە هەر ١٠ چرکە جارێک بۆ ئەوەی ڕاستەوخۆ بێت و بلۆک نەبێت
+    // ئەپدەیتکردنەوە هەر ٥ چرکە جارێک بۆ ئەوەی ڕاستەوخۆ بێت و بلۆک نەبێت
     const interval = setInterval(() => {
       fetchLiveRates();
       fetchLiveGold();
-    }, 10000); 
+    }, 5000); 
     
     return () => clearInterval(interval);
   }, []);

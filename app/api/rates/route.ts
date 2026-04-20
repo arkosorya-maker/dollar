@@ -16,7 +16,7 @@ let currentRates = [
 ];
 
 let lastFetchTime = 0;
-const CACHE_DURATION = 10000; // 10 seconds
+const CACHE_DURATION = 2000; // 2 seconds
 
 export async function GET() {
   const borsaKey = "571d8f8b5fc837aca9b503b6c9ece7b7ca45905eb478f7755b347ca7ba43c2fd";
@@ -25,39 +25,39 @@ export async function GET() {
     const now = Date.now();
     if (now - lastFetchTime > CACHE_DURATION) {
       
-      // وەگرتنی دۆلار لە BorsaAPI
-      const resBorsa = await fetch('https://borsapi.vercel.app/api/v2/get-price?item=usd&location=erbil', {
-        headers: { 'Authorization': `Bearer ${borsaKey}` },
-        cache: 'no-store'
-      });
-
-      // وەگرتنی نرخە جیهانیەکان بۆ ئەوانی تر
-      const resForex = await fetch('https://api.exchangerate-api.com/v4/latest/USD', { cache: 'no-store' });
+      const [resBorsa, resForex] = await Promise.all([
+        fetch('https://borsapi.vercel.app/api/v2/get-price?item=usd&location=erbil', {
+          headers: { 'Authorization': `Bearer ${borsaKey}` },
+          cache: 'no-store'
+        }).catch(() => null),
+        fetch('https://api.exchangerate-api.com/v4/latest/USD', { cache: 'no-store' }).catch(() => null)
+      ]);
       
       let liveUSD = null;
       let forexRates = null;
       
-      if (resBorsa.ok) {
+      if (resBorsa && resBorsa.ok) {
         const d = await resBorsa.json();
         liveUSD = d.value;
       }
-      if (resForex.ok) {
+      if (resForex && resForex.ok) {
         const d = await resForex.json();
         forexRates = d.rates;
       }
 
-      if (liveUSD && forexRates) {
+      if (liveUSD || forexRates) {
         lastFetchTime = now;
-        const usdToIqd = liveUSD / 100;
+        // Use either live fetch or last known local rate
+        const effectiveUsd = liveUSD || currentRates.find(r => r.id === 'USD')?.rate || 153000;
+        const usdToIqd = effectiveUsd / 100;
         
         currentRates = currentRates.map(currency => {
-          if (currency.id === 'USD') return { ...currency, rate: liveUSD };
+          if (currency.id === 'USD' && liveUSD) return { ...currency, rate: liveUSD };
           if (currency.id === 'IQD') return currency;
 
-          if (forexRates[currency.id]) {
+          if (forexRates && forexRates[currency.id]) {
             let exactRate = (1 / forexRates[currency.id]) * usdToIqd * currency.amount;
             
-            // چاککردنی تمەن بەپێی بازاڕی جیهانی (100 هەزار تمەن)
             if (currency.id === 'IRR') {
               exactRate = (1 / forexRates.IRR) * usdToIqd * 1000000;
             }
@@ -69,8 +69,14 @@ export async function GET() {
       }
     }
   } catch(e) {
-    console.error("Failed to fetch rates from BorsaAPI", e);
+    console.error("Failed to update rates", e);
   }
   
-  return NextResponse.json(currentRates);
+  return NextResponse.json(currentRates, {
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    }
+  });
 }
