@@ -13,20 +13,21 @@ let lastFetchTime = 0;
 const CACHE_DURATION = 2000; // 2 seconds
 
 export async function GET(req: Request) {
-  const borsaKey = "571d8f8b5fc837aca9b503b6c9ece7b7ca45905eb478f7755b347ca7ba43c2fd";
+  const dinarKey = "dinarapi_live_8kBT5sAyl0E3QqA1YYi1PVUX0Ck5UD26DwGpwwLm";
   
   try {
     const now = Date.now();
     if (now - lastFetchTime > CACHE_DURATION) {
-      // BorsaAPI Gold logic
-      const promises = currentGold.map(g => 
-        fetch(`https://borsapi.vercel.app/api/v2/get-price?item=${g.param}&location=erbil`, {
-          headers: { 'Authorization': `Bearer ${borsaKey}` },
+      // DinarAPI Gold logic (24K=3, 21K=2, 18K=1)
+      const promises = currentGold.map(g => {
+        const dinarId = g.id === '24K' ? 3 : g.id === '21K' ? 2 : 1;
+        return fetch(`https://dinarapi.hediworks.site/api/v2/get-price?id=${dinarId}&location=erbil`, {
+          headers: { Authorization: `Bearer ${dinarKey}` },
           cache: 'no-store'
         }).then(r => r.ok ? r.json() : null)
         .then(data => ({ id: g.id, value: data?.value || null }))
-        .catch(() => ({ id: g.id, value: null }))
-      );
+        .catch(() => ({ id: g.id, value: null }));
+      });
 
       const results = await Promise.all(promises);
       lastFetchTime = now;
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
     gold: currentGold,
     metadata: {
       lastUpdate: lastFetchTime,
-      source: 'BORSA'
+      source: 'DINAR'
     }
   }, {
     headers: {

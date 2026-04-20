@@ -155,7 +155,7 @@ function HomeTab({ currencies, lastUpdated, isRefreshing, onConvert }: { currenc
             <div className={`w-2 h-2 rounded-full ${isRefreshing ? 'bg-[#C9A84C] animate-pulse' : 'bg-green-500'}`} />
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">لایڤ</span>
             <div className="flex gap-1">
-              <span className="text-[9px] bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20 px-2 py-0.5 rounded-full uppercase">BORSA + GLOBAL</span>
+              <span className="text-[9px] bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20 px-2 py-0.5 rounded-full uppercase">DINAR + GLOBAL</span>
             </div>
          </div>
          <div className="flex items-center gap-1.5 opacity-60">

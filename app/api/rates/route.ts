@@ -19,22 +19,22 @@ let lastFetchTime = 0;
 const CACHE_DURATION = 2000; // 2 seconds
 
 export async function GET(req: Request) {
-  const borsaKey = "571d8f8b5fc837aca9b503b6c9ece7b7ca45905eb478f7755b347ca7ba43c2fd";
+  const dinarKey = "dinarapi_live_8kBT5sAyl0E3QqA1YYi1PVUX0Ck5UD26DwGpwwLm";
   const userExchangeKey = "343dd2fb977fc3fbbd762a51";
   let forexRates: any = null;
   
   try {
     const now = Date.now();
     if (now - lastFetchTime > CACHE_DURATION) {
-      // 1. Fetch Local USD from Borsa
-      const resBorsa = await fetch('https://borsapi.vercel.app/api/v2/get-price?item=usd&location=erbil', {
-        headers: { 'Authorization': `Bearer ${borsaKey}` },
+      // 1. Fetch Local USD from DinarAPI (Erbil ID 5)
+      const resDinar = await fetch(`https://dinarapi.hediworks.site/api/v2/get-price?location=erbil&id=5`, {
+        headers: { Authorization: `Bearer ${dinarKey}` },
         cache: 'no-store'
       }).catch(() => null);
       
       let liveUSD = null;
-      if (resBorsa && resBorsa.ok) {
-        const d = await resBorsa.json();
+      if (resDinar && resDinar.ok) {
+        const d = await resDinar.json();
         liveUSD = d.value;
       }
 
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
         const usdToIqd = effectiveUsd / 100;
         
         currentRates = currentRates.map(currency => {
-          // Borsa for USD
+          // DinarAPI for USD
           if (currency.id === 'USD') return { ...currency, rate: effectiveUsd };
           // IQD is fixed base
           if (currency.id === 'IQD') return currency;
@@ -74,7 +74,7 @@ export async function GET(req: Request) {
     rates: currentRates,
     metadata: {
       lastUpdate: lastFetchTime,
-      source: 'BORSA + GLOBAL'
+      source: 'DINAR + GLOBAL'
     }
   }, {
     headers: {
