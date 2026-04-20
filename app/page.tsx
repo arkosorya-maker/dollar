@@ -29,6 +29,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [liveCurrencies, setLiveCurrencies] = useState(mockCurrencies);
   const [liveGold, setLiveGold] = useState(mockGold);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     let isFetchingRates = false;
@@ -37,16 +39,21 @@ export default function App() {
     const fetchLiveRates = async () => {
       if (isFetchingRates) return;
       isFetchingRates = true;
+      setIsRefreshing(true);
       try {
-        const res = await fetch('/api/rates?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(`/api/rates?t=` + Date.now(), { cache: 'no-store' });
         const data = await res.json();
-        if (data && data.length > 0) {
-          setLiveCurrencies(data);
+        if (data && data.rates) {
+          setLiveCurrencies(data.rates);
+          if (data.metadata?.lastUpdate) {
+            setLastUpdated(data.metadata.lastUpdate);
+          }
         }
       } catch (e) {
         console.error("Error fetching live rates", e);
       } finally {
         isFetchingRates = false;
+        setTimeout(() => setIsRefreshing(false), 800);
       }
     };
 
@@ -54,10 +61,10 @@ export default function App() {
       if (isFetchingGold) return;
       isFetchingGold = true;
       try {
-        const res = await fetch('/api/gold?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(`/api/gold?t=` + Date.now(), { cache: 'no-store' });
         const data = await res.json();
-        if (data && data.length > 0) {
-          setLiveGold(data);
+        if (data && data.gold) {
+          setLiveGold(data.gold);
         }
       } catch (e) {
         console.error("Error fetching live gold", e);
@@ -69,7 +76,6 @@ export default function App() {
     fetchLiveRates();
     fetchLiveGold(); // Fetch immediately
     
-    // ئەپدەیتکردنەوە هەر ٥ چرکە جارێک بۆ ئەوەی ڕاستەوخۆ بێت و بلۆک نەبێت
     const interval = setInterval(() => {
       fetchLiveRates();
       fetchLiveGold();
@@ -82,7 +88,14 @@ export default function App() {
     <div className="w-full h-[100dvh] flex flex-col bg-[#0D0D1A] overflow-hidden text-white mx-auto max-w-md relative shadow-zinc-950 shadow-2xl">
       {/* Main Content Area */}
       <div className="flex-1 w-full relative overflow-hidden bg-[#0D0D1A]">
-        {activeTab === 'home' && <HomeTab currencies={liveCurrencies} onConvert={(id) => setActiveTab('converter')} />}
+        {activeTab === 'home' && (
+          <HomeTab 
+            currencies={liveCurrencies} 
+            lastUpdated={lastUpdated} 
+            isRefreshing={isRefreshing}
+            onConvert={(id) => setActiveTab('converter')} 
+          />
+        )}
         {activeTab === 'converter' && <ConverterTab currencies={liveCurrencies} onBack={() => setActiveTab('home')} />}
         {activeTab === 'gold' && <GoldTab gold={liveGold} />}
         {activeTab === 'profile' && <ProfileTab />}
@@ -111,8 +124,9 @@ function NavItem({ id, emoji, label, active, onClick }: { id: string, emoji: str
   );
 }
 
-function HomeTab({ currencies, onConvert }: { currencies: any[], onConvert: (id: string) => void }) {
+function HomeTab({ currencies, lastUpdated, isRefreshing, onConvert }: { currencies: any[], lastUpdated: number | null, isRefreshing: boolean, onConvert: (id: string) => void }) {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [timeText, setTimeText] = useState('ئێستا');
   
   useEffect(() => {
     const timer = setInterval(() => {
@@ -121,8 +135,34 @@ function HomeTab({ currencies, onConvert }: { currencies: any[], onConvert: (id:
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const updateTime = () => {
+      const diff = Math.floor((Date.now() - lastUpdated) / 1000);
+      if (diff < 10) setTimeText('ئێستا');
+      else if (diff < 60) setTimeText(`${diff} چرکەی پێش ئێستا`);
+      else setTimeText(`${Math.floor(diff / 60)} خولەکی پێش ئێستا`);
+    };
+    updateTime();
+    const t = setInterval(updateTime, 10000);
+    return () => clearInterval(t);
+  }, [lastUpdated]);
+
   return (
-    <div className="w-full h-full overflow-y-auto overflow-x-hidden">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden pb-4">
+      <div className="flex items-center justify-between px-6 pt-6 pb-2">
+         <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${isRefreshing ? 'bg-[#C9A84C] animate-pulse' : 'bg-green-500'}`} />
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">لایڤ</span>
+            <div className="flex gap-1">
+              <span className="text-[9px] bg-[#C9A84C]/10 text-[#C9A84C] border border-[#C9A84C]/20 px-2 py-0.5 rounded-full uppercase">BORSA + GLOBAL</span>
+            </div>
+         </div>
+         <div className="flex items-center gap-1.5 opacity-60">
+            <span className="text-[10px] font-medium" dir="rtl">{timeText} ئەپدەیت کراوە</span>
+            <ArrowLeftRight size={10} className={`${isRefreshing ? 'animate-spin' : ''}`} />
+         </div>
+      </div>
       {/* Banner Slider */}
       <div className="w-full h-[220px] relative shrink-0 bg-[#13132B]" style={{background: `linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.5)), url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220"><rect width="400" height="220" fill="%2313132B"/><path d="M0 110 Q 100 80 200 110 T 400 110" stroke="%23C9A84C" stroke-width="2" fill="none"/></svg>')`, backgroundSize: 'cover'}}>
         <div className="absolute inset-0 flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
@@ -402,11 +442,11 @@ function ProfileTab() {
            <User size={40} className="text-[#C9A84C]" />
         </div>
         <h2 className="text-xl font-bold">DinarRate <span className="text-[#C9A84C]">Pro</span></h2>
-        <p className="text-white/50 text-sm mt-1">Version 1.0.0</p>
+        <p className="text-white/50 text-sm mt-1">Version 1.0.1</p>
       </div>
 
       <div className="flex flex-col gap-2 mb-20">
-        <div className="text-xs font-bold text-white/40 px-4 py-2 uppercase tracking-wider">Settings</div>
+        <div className="text-xs font-bold text-white/40 px-4 py-2 uppercase tracking-wider">ڕێکخستنەکان</div>
 
         <button className="w-full bg-[#13132B] p-4 rounded-t-2xl flex items-center justify-between active:bg-white/5 transition-colors">
           <ChevronRight size={20} className="text-white/40" />

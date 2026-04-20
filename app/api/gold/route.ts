@@ -12,12 +12,13 @@ let currentGold = [
 let lastFetchTime = 0;
 const CACHE_DURATION = 2000; // 2 seconds
 
-export async function GET() {
+export async function GET(req: Request) {
   const borsaKey = "571d8f8b5fc837aca9b503b6c9ece7b7ca45905eb478f7755b347ca7ba43c2fd";
   
   try {
     const now = Date.now();
     if (now - lastFetchTime > CACHE_DURATION) {
+      // BorsaAPI Gold logic
       const promises = currentGold.map(g => 
         fetch(`https://borsapi.vercel.app/api/v2/get-price?item=${g.param}&location=erbil`, {
           headers: { 'Authorization': `Bearer ${borsaKey}` },
@@ -33,20 +34,23 @@ export async function GET() {
       currentGold = currentGold.map(gold => {
         const match = results.find(r => r.id === gold.id);
         if (match && match.value) {
-          return {
-            ...gold,
-            priceIQD: match.value
-          };
+          return { ...gold, priceIQD: match.value };
         }
         return gold;
       });
     }
 
   } catch(e) {
-    console.error("Failed to fetch gold from BorsaAPI", e);
+    console.error("Failed to fetch gold", e);
   }
   
-  return NextResponse.json(currentGold, {
+  return NextResponse.json({
+    gold: currentGold,
+    metadata: {
+      lastUpdate: lastFetchTime,
+      source: 'BORSA'
+    }
+  }, {
     headers: {
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
