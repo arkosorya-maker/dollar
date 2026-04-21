@@ -26,19 +26,47 @@ export async function GET(req: Request) {
   try {
     const now = Date.now();
     if (now - lastFetchTime > CACHE_DURATION) {
-      // 1. Fetch Local USD from DinarAPI (Erbil ID 5)
-      const resDinar = await fetch(`https://dinarapi.hediworks.site/api/v2/get-price?location=erbil&id=5`, {
-        headers: { Authorization: `Bearer ${dinarKey}` },
-        cache: 'no-store'
-      }).catch(() => null);
-      
       let liveUSD = null;
-      if (resDinar && resDinar.ok) {
-        const d = await resDinar.json();
-        liveUSD = d.value;
+
+      // 1. Try to scrape from Telegram (Iraq Borsa)
+      try {
+        const resTele = await fetch('https://t.me/s/iraqborsa', { cache: 'no-store' });
+        if (resTele.ok) {
+          const html = await resTele.text();
+          const messages = html.match(/<div class="tgme_widget_message_text[^>]*>(.*?)<\/div>/g);
+          if (messages && messages.length > 0) {
+            // Find the most recent message with 'پێنجی' which represents the Erbil retail rate (Daim Pinji)
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const msg = messages[i];
+              if (msg.includes('پێنجی') || msg.includes('دایم')) {
+                // Look for a 6-digit number (e.g., 153,500)
+                const match = msg.match(/(\d{2,3}[,.]\d{3})/);
+                if (match) {
+                  liveUSD = parseInt(match[1].replace(/[,.]/g, ''));
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Telegram rates scraping failed", e);
       }
 
-      // 2. Fetch Global Foreign Rates from User's ExchangeRate-API
+      // 2. Fallback to Local USD from DinarAPI if Telegram failed
+      if (!liveUSD) {
+        const resDinar = await fetch(`https://dinarapi.hediworks.site/api/v2/get-price?location=erbil&id=5`, {
+          headers: { Authorization: `Bearer ${dinarKey}` },
+          cache: 'no-store'
+        }).catch(() => null);
+        
+        if (resDinar && resDinar.ok) {
+          const d = await resDinar.json();
+          liveUSD = d.value;
+        }
+      }
+
+      // 3. Fetch Global Foreign Rates from User's ExchangeRate-API
       const resForex = await fetch(`https://v6.exchangerate-api.com/v6/${userExchangeKey}/latest/USD`, { cache: 'no-store' }).catch(() => null);
       if (resForex && resForex.ok) {
         const d = await resForex.json();
@@ -74,7 +102,7 @@ export async function GET(req: Request) {
     rates: currentRates,
     metadata: {
       lastUpdate: lastFetchTime,
-      source: 'DINAR + GLOBAL'
+      source: 'BORSA + GLOBAL'
     }
   }, {
     headers: {
